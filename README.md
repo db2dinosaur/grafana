@@ -1,4 +1,4 @@
-Grafana# Grafana
+## Grafana
 
 This repository contains Grafana configuration and deployment resources.
 
