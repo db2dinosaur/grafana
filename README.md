@@ -27,6 +27,7 @@ Client interaction works by HTTPS - terminated at ingress - to the Oauth Proxy. 
   - see the section on oauth-proxy, below
 * oc adm policy add-scc-to-user anyuid -z grafana -n grafana
 * oc adm policy add-cluster-role-to-user cluster-monitoring-view -z grafana -n grafana
+* oc create -f grafana-oauth-proxy-secret.yaml
 * oc create -f grafana-statefulset.yaml
 * oc create -f grafana-service.yaml
 * oc create -f grafana-route.yaml
