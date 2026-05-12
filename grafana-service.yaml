@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-oauth
+  namespace: grafana
+  labels:
+    app: grafana
+spec:
+  ports:
+    - name: oauth-proxy
+      port: 3001
+      protocol: TCP
+      targetPort: 3001
+  selector:
+    app: grafana
+  sessionAffinity: None
+  type: ClusterIP

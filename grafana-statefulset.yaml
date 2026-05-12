@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: grafana
+  name: grafana
+  namespace: grafana
+replicas: 1
+spec:
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      serviceAccountName: grafana
+      securityContext:
+        fsGroup: 472
+        supplementalGroups:
+          - 0
+      containers:
+        - name: grafana-proxy
+          resources:
+            requests:
+              cpu: 10m
+              memory: 128Mi
+          volumeMounts:
+            - name: grafana-oauth-proxy-secret
+              mountPath: /etc/proxy/secrets
+              readOnly: true
+          ports:
+            - containerPort: 3001
+              name: oauth-proxy
+              protocol: TCP
+          imagePullPolicy: IfNotPresent
+          image: 'registry.redhat.io/openshift4/ose-oauth-proxy-rhel9:v4.20.0-202604241817.p2.gbaba7b5.assembly.stream.el9'
+          args:
+            - '--provider=openshift'
+            - '--http-address=:3001'
+            - '--https-address='
+            - '--email-domain=*'
+            - '--display-htpasswd-form=false'
+            - '--openshift-sar={"namespace": "grafana", "resource": "pods", "verb": "get"}'
+            - '--openshift-service-account=grafana'
+            - '--upstream=http://localhost:3000'
+            - '--client-secret-file=/var/run/secrets/kubernetes.io/serviceaccount/token'
+            - '--cookie-secret-file=/etc/proxy/secrets/session_secret'
+        - name: grafana
+          image: grafana/grafana:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+              name: http-grafana
+              protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /robots.txt
+              port: 3000
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 2
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: 3000
+            timeoutSeconds: 1
+          resources:
+            requests:
+              cpu: 250m
+              memory: 750Mi
+          env:
+            - name: GRAFANA_PORT
+              value: '3000'
+            - name: GF_AUTH_BASIC_ENABLED
+              value: 'false'
+            - name: GF_AUTH_PROXY_ENABLED
+              value: 'true'
+            - name: GF_AUTH_PROXY_AUTO_SIGNUP
+              value: 'true'
+            - name: GF_AUTH_PROXY_WHITELIST
+              value: '127.0.0.1/24,::1'
+            - name: GF_AUTH_PROXY_HEADERS
+              value: 'Email:X-Forwarded-Email'
+            - name: GF_AUTH_PROXY_HEADER_NAME
+              value: X-Forwarded-User
+            - name: GF_USERS_AUTO_ASSIGN_ORG_ROLE
+              value: Admin
+          volumeMounts:
+            - mountPath: /var/lib/grafana
+              name: grafana-storage
+      volumes:
+        - name: grafana-storage
+          persistentVolumeClaim:
+            claimName: grafana-storage
+        - name: grafana-oauth-proxy-secret
+          secret:
+            secretName: grafana-oauth-proxy-secret  
+            defaultMode: 420
